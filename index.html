@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KSP Crime Intelligence Copilot · Datathon 2026</title>
+
+  <!-- Fonts (Inter + Kannada glyphs) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Kannada:wght@400;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Maps -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- ============================ TOP BAR ============================ -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="shield">🛡️</div>
+        <div class="brand-text">
+          <h1>Karnataka State Police <span class="div">·</span> Crime Intelligence Copilot</h1>
+          <p data-i18n="tagline">Agentic Investigation Copilot · ಅಪರಾಧ ಗುಪ್ತಚರ ಸಹಾಯಕ</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="role-badge" title="Role-based access control">
+          <span class="dot"></span><span data-i18n="role">Inspector · Crime Branch</span>
+        </div>
+        <div class="lang-toggle" id="langToggle">
+          <button class="active" data-lang="en">EN</button>
+          <button data-lang="kn">ಕನ್ನಡ</button>
+        </div>
+        <div class="clock" id="clock">--:--:--</div>
+      </div>
+    </header>
+
+    <!-- ============================ STAT STRIP ========================= -->
+    <section class="stats" id="stats"></section>
+
+    <!-- ============================== MAIN ============================= -->
+    <main class="main">
+      <!-- ----------------------- LEFT: COPILOT CHAT ------------------- -->
+      <section class="copilot panel">
+        <div class="panel-head">
+          <h2 data-i18n="copilot">🤖 Investigation Copilot</h2>
+          <span class="grounded-badge" title="Every answer is grounded in real records with citations">
+            ✓ <span data-i18n="grounded">Grounded · 0 hallucination</span>
+          </span>
+        </div>
+
+        <div class="chat" id="chat"></div>
+
+        <div class="suggestions" id="suggestions"></div>
+
+        <div class="composer">
+          <button class="mic" id="micBtn" title="Voice query (English / ಕನ್ನಡ)">🎙️</button>
+          <input id="queryInput" type="text" autocomplete="off"
+                 placeholder="Ask anything… e.g. Investigate chain snatching in Bengaluru" />
+          <button class="send" id="sendBtn">➤</button>
+        </div>
+        <div class="composer-hint" id="speakStatus"></div>
+      </section>
+
+      <!-- ----------------------- RIGHT: WORKSPACE -------------------- -->
+      <section class="workspace">
+        <!-- MAP -->
+        <div class="panel map-panel">
+          <div class="panel-head">
+            <h2 data-i18n="map">🗺️ Crime Hotspot Map</h2>
+            <span class="panel-sub" id="mapSub" data-i18n="mapSub">Live geospatial intelligence</span>
+          </div>
+          <div id="map"></div>
+        </div>
+
+        <!-- NETWORK + FORECAST -->
+        <div class="two-up">
+          <div class="panel">
+            <div class="panel-head">
+              <h2 data-i18n="network">🕸️ Criminal Network</h2>
+              <span class="panel-sub" id="netSub" data-i18n="netSub">Click a node to expand</span>
+            </div>
+            <div id="network"></div>
+          </div>
+
+          <div class="panel">
+            <div class="panel-head">
+              <h2 data-i18n="forecast">🔮 Forecast & Risk</h2>
+              <span class="panel-sub" data-i18n="xai">Explainable AI</span>
+            </div>
+            <div id="forecast" class="forecast-body">
+              <div class="placeholder" data-i18n="ph_forecast">Run a prediction or open a suspect to see explainable scoring.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TIMELINE -->
+        <div class="panel">
+          <div class="panel-head">
+            <h2 data-i18n="timeline">📈 Investigation Timeline</h2>
+            <span class="panel-sub" id="tlSub"></span>
+          </div>
+          <div id="timeline" class="timeline-body">
+            <div class="placeholder" data-i18n="ph_timeline">Cases will plot here chronologically with pattern detection.</div>
+          </div>
+        </div>
+
+        <!-- EVIDENCE + REPORT -->
+        <div class="panel">
+          <div class="panel-head">
+            <h2 data-i18n="evidence">📁 Evidence & Report</h2>
+            <button class="report-btn" id="reportBtn" disabled>📄 <span data-i18n="genreport">Generate PDF Report</span></button>
+          </div>
+          <div id="evidence" class="evidence-body">
+            <div class="placeholder" data-i18n="ph_evidence">Matching case records (with citations) appear here.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ============================ AUDIT BAR ========================= -->
+    <footer class="auditbar">
+      <span class="audit-label">🔒 <span data-i18n="audit">Audit log</span></span>
+      <div class="audit-track" id="auditTrack"></div>
+      <span class="synthetic">⚠ <span data-i18n="synthetic">Synthetic demo data — no real persons or cases</span></span>
+    </footer>
+  </div>
+
+  <!-- ============================ LIBRARIES ========================= -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+  <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- ============================ APP CODE ========================= -->
+  <script src="data.js"></script>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

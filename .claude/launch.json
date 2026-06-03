@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "copilot",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/tmp/ksp-copilot/serve.py", "8000"],
+      "port": 8000
+    }
+  ]
+}
