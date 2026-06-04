@@ -12,9 +12,13 @@
  * ==========================================================================*/
 (function () {
   "use strict";
-  const DB = window.DB;
+  const root = typeof window !== "undefined" ? window : (typeof global !== "undefined" ? global : this);
+  const DB = root.DB || (typeof require !== "undefined" ? require("./data") : null);
   const dayMs = 86400000;
   const NOW = DB.refNow;
+
+  // Conversation memory → pillar #1 "context-aware follow-up without repeating context".
+  let CTX = { crimeType: null, district: null, suspect: null, lastCaseId: null };
 
   /* --------------------------- Synonym lexicon ---------------------------- */
   const CRIME_SYNONYMS = {
@@ -70,14 +74,20 @@
     // time range
     e.time = parseTime(q);
 
-    // intent
+    // case id reference (for similar-case lookups)
+    const cid = qRaw.match(/\bKSP-?\d{5}\b/i); if (cid) e.caseId = cid[0].toUpperCase().replace("KSP", "KSP-").replace("--", "-");
+
+    // intent (order matters — most specific first)
     let intent = "search_cases";
     if (/\binvestigate\b|\bautonomous\b|\bfull (report|analysis)\b|\bdig into\b/.test(q)) intent = "investigate";
+    else if (/\bmoney\b|\bfinancial\b|\btransaction|\blaunder|\bmule|\bbank account|\bfunds?\b/.test(q)) intent = "financial";
+    else if (/\bsocio|\bdemograph|\bunemployment\b|\bliteracy\b|\burban|\bmigration\b|\beconomic|\bsocial (factor|risk|indicator)/.test(q)) intent = "socio";
+    else if (/\bsimilar\b|\bcomparable\b|\blike this\b|\bprecedent\b/.test(q)) intent = "similar";
     else if (e.phone) intent = "trace_phone";
     else if (e.vehicle) intent = "trace_vehicle";
-    else if (/\bpredict\b|\bnext\b|\bhotspot\b|\bforecast\b|\bwhere will\b/.test(q)) intent = "predict";
+    else if (/\bpredict\b|\bnext\b|\bhotspot\b|\bforecast\b|\bwhere will\b|\bearly warning\b|\balert\b/.test(q)) intent = "predict";
     else if (/\bnetwork\b|\bassociate\b|\bgang\b|\bconnections?\b|\bgraph\b/.test(q) || (e.suspect && /\bnetwork|associate|connect/.test(q))) intent = "network";
-    else if (/\brisk\b|\bdanger\b|\bprofile\b|\bdossier\b/.test(q) && e.suspect) intent = "risk";
+    else if (/\brisk\b|\bdanger\b|\bprofile\b|\bdossier\b|\bbehaviou?r/.test(q) && e.suspect) intent = "risk";
     else if (e.suspect && !e.crimeType) intent = "network";
     else if (/\bhelp\b|\bwhat can you\b|\bhow do/.test(q)) intent = "help";
 
@@ -200,8 +210,16 @@
   }
 
   /* --------------------------- Intent handlers ---------------------------- */
-  function handle(qRaw) {
+  function handleInner(qRaw) {
     const { intent, entities: e, query } = parse(qRaw);
+
+    // ---- follow-up resolution: fill gaps from conversation memory (pillar #1) ----
+    const ql = qRaw.toLowerCase();
+    const isShort = qRaw.trim().split(/\s+/).length <= 5;
+    const anaphora = /\b(it|that|this|those|these|them|they|their|same|more|again|here|there|one|ones)\b/.test(ql);
+    if (!e.crimeType && CTX.crimeType && (anaphora || isShort)) e.crimeType = CTX.crimeType;
+    if (!e.district && CTX.district && (anaphora || isShort || /\b(there|here|same|that area|same place)\b/.test(ql))) e.district = CTX.district;
+    if (!e.suspect && CTX.suspect && /\b(he|him|his|she|her|they|them|their|same|network|associate|profile|dossier)\b/.test(ql)) e.suspect = CTX.suspect;
 
     if (intent === "help") {
       return baseResult(intent, query, {
@@ -305,6 +323,52 @@
       });
     }
 
+    /* ---- financial crime & money-trail (pillar #7) ---- */
+    if (intent === "financial") {
+      let s = DB.suspectById(e.suspect);
+      if (!s || !s.accounts.length) {
+        const finCase = DB.cases.filter((c) => c.transactions && c.transactions.length && c.suspects.length)
+          .sort((a, b) => b.transactions.length - a.transactions.length)[0];
+        s = finCase ? DB.suspectById(finCase.suspects[0]) : DB.topSuspect();
+      }
+      const fin = moneyTrail(s);
+      const cases = s.cases.map((id) => DB.caseById(id)).filter((c) => c.transactions && c.transactions.length).sort((a, b) => b.ts - a.ts);
+      const flaggedTotal = fin.transactions.filter((t) => t.flagged).reduce((x, t) => x + t.amount, 0);
+      return baseResult(intent, query, {
+        answerEN: `Money-trail for ${s.name} (${s.id}): ${fin.accounts.length} linked account(s), ${fin.transactions.length} transaction(s), ${fin.mules} suspected mule account(s). Flagged value ₹${flaggedTotal.toLocaleString("en-IN")}. ` +
+          (fin.transactions.length ? `Funds route through layered mule accounts — a classic laundering structure.` : `No suspicious transfers found.`),
+        answerKN: `${s.name} ಹಣದ ಜಾಡು: ${fin.accounts.length} ಖಾತೆ, ${fin.transactions.length} ವರ್ಗಾವಣೆ, ₹${flaggedTotal.toLocaleString("en-IN")} ಶಂಕಿತ.`,
+        cases, financial: fin, network: fin.network,
+        risk: { subject: s.name + " (" + s.id + ")", score: s.riskScore, factors: s.riskFactors },
+        sources: [...new Set([...cases.map((c) => c.id), ...fin.transactions.map((t) => t.id)])]
+      });
+    }
+
+    /* ---- sociological crime insights (pillar #4) ---- */
+    if (intent === "socio") {
+      const socio = socioInsights(e.crimeType);
+      return baseResult(intent, query, {
+        answerEN: `Sociological analysis${e.crimeType ? " of " + e.crimeType : " (all crime)"}: ${socio.headline} Offender demographic: ${socio.demo.summary}.`,
+        answerKN: `ಸಾಮಾಜಿಕ ವಿಶ್ಲೇಷಣೆ: ${socio.headlineKN}`,
+        cases: socio.cases.slice(0, 60), socio,
+        sources: socio.cases.slice(0, 30).map((c) => c.id)
+      });
+    }
+
+    /* ---- similar past cases (pillar #6) ---- */
+    if (intent === "similar") {
+      const ref = DB.caseById(e.caseId) || DB.caseById(CTX.lastCaseId) || filterCases(e)[0];
+      if (!ref) return baseResult(intent, query, { answerEN: "Give me a case to compare, e.g. “similar cases to KSP-10200”.", answerKN: "ಹೋಲಿಕೆಗೆ ಪ್ರಕರಣ ಸಂಖ್ಯೆ ತಿಳಿಸಿ.", cases: [] });
+      const sim = similarCases(ref, 12);
+      return baseResult(intent, query, {
+        answerEN: `Found ${sim.length} case(s) similar to ${ref.id} (${ref.type} · ${ref.area}), ranked by modus operandi, type, location and severity. ` +
+          (sim[0] ? `Closest: ${sim[0].id} (${sim[0].matchPct}% match).` : ""),
+        answerKN: `${ref.id} ಗೆ ಹೋಲುವ ${sim.length} ಪ್ರಕರಣಗಳು ಸಿಕ್ಕಿವೆ.`,
+        cases: sim, hotspots: computeHotspots(sim), timeline: timeline(sim),
+        sources: [ref.id, ...sim.map((c) => c.id)]
+      });
+    }
+
     /* ---- default: search ---- */
     const cases = filterCases(e);
     const hs = computeHotspots(cases);
@@ -319,6 +383,94 @@
     });
   }
 
+  /* --------------------- Financial: money-trail builder ------------------- */
+  function moneyTrail(s) {
+    const own = new Set(s.accounts);
+    const txns = [], seen = new Set();
+    const addTx = (t) => { if (!seen.has(t.id)) { seen.add(t.id); txns.push(t); } };
+    DB.transactions.forEach((t) => { if (own.has(t.from) || own.has(t.to)) addTx(t); });
+    let frontier = new Set(txns.filter((t) => t.flagged).map((t) => t.to));
+    for (let hop = 0; hop < 2; hop++) {
+      const next = new Set();
+      DB.transactions.forEach((t) => { if (t.flagged && frontier.has(t.from)) { addTx(t); next.add(t.to); } });
+      frontier = next;
+    }
+    const accIds = new Set(s.accounts);
+    txns.forEach((t) => { accIds.add(t.from); accIds.add(t.to); });
+    const accounts = [...accIds].map((id) => DB.accountById(id)).filter(Boolean);
+    const mules = accounts.filter((a) => a.mule).length;
+    const nodes = [{ id: s.id, name: s.name, alias: s.alias, risk: s.riskScore, level: 0 }];
+    const evidence = accounts.map((a) => ({ id: a.id, name: (a.mule ? "⚠ " : "🏦 ") + a.bank + " " + a.number, kind: a.mule ? "mule" : "account" }));
+    const edges = [];
+    s.accounts.forEach((a) => edges.push({ from: s.id, to: a, kind: "owns", label: "owns" }));
+    txns.forEach((t) => edges.push({ from: t.from, to: t.to, kind: t.flagged ? "txn-flag" : "txn", label: "₹" + Math.round(t.amount / 1000) + "k" }));
+    return { accounts, transactions: txns, mules, network: { focusId: s.id, focusName: s.name, nodes, evidence, edges } };
+  }
+
+  /* ----------------- Sociological: correlations + demographics ------------ */
+  function pearson(x, y) {
+    const n = x.length; if (!n) return 0;
+    const mx = x.reduce((a, b) => a + b, 0) / n, my = y.reduce((a, b) => a + b, 0) / n;
+    let num = 0, dx = 0, dy = 0;
+    for (let i = 0; i < n; i++) { const a = x[i] - mx, b = y[i] - my; num += a * b; dx += a * a; dy += b * b; }
+    return (dx && dy) ? num / Math.sqrt(dx * dy) : 0;
+  }
+  function corrPhrase(name, r) {
+    const m = {
+      "Unemployment": r >= 0 ? "higher-unemployment districts report more crime" : "lower-unemployment districts report more crime",
+      "Urbanization": r >= 0 ? "more-urbanized districts report more crime" : "less-urbanized districts report more crime",
+      "Migration index": r >= 0 ? "higher in-migration districts report more crime" : "lower-migration districts report more crime",
+      "Literacy": r >= 0 ? "higher-literacy districts report more crime" : "lower-literacy districts report more crime",
+      "Per-capita income": r >= 0 ? "wealthier districts report more crime" : "lower-income districts report more crime"
+    };
+    return m[name] || "";
+  }
+  function socioInsights(crimeType) {
+    const districts = DB.districts;
+    const counts = districts.map((d) => DB.cases.filter((c) => c.district === d.district && (!crimeType || c.type === crimeType)).length);
+    const factorDefs = [
+      { name: "Unemployment", key: "unemployment" }, { name: "Urbanization", key: "urban" },
+      { name: "Migration index", key: "migration" }, { name: "Literacy", key: "literacy" },
+      { name: "Per-capita income", key: "income" }
+    ];
+    const correlations = factorDefs.map((f) => {
+      const r = pearson(districts.map((d) => d[f.key]), counts);
+      const strength = Math.abs(r) > 0.6 ? "strong" : Math.abs(r) > 0.35 ? "moderate" : "weak";
+      return { name: f.name, r: +r.toFixed(2), strength, insight: `${strength} ${r >= 0 ? "positive" : "negative"} correlation (r=${r.toFixed(2)}) — ${corrPhrase(f.name, r)}` };
+    }).sort((a, b) => Math.abs(b.r) - Math.abs(a.r));
+
+    const cases = DB.cases.filter((c) => !crimeType || c.type === crimeType);
+    const offs = [...new Set(cases.flatMap((c) => c.suspects))].map((id) => DB.suspectById(id)).filter(Boolean);
+    const ageBuckets = { "18-25": 0, "26-35": 0, "36-45": 0, "46+": 0 };
+    offs.forEach((o) => { const a = o.age; if (a <= 25) ageBuckets["18-25"]++; else if (a <= 35) ageBuckets["26-35"]++; else if (a <= 45) ageBuckets["36-45"]++; else ageBuckets["46+"]++; });
+    const male = offs.filter((o) => o.gender === "M").length;
+    const topAge = Object.entries(ageBuckets).sort((a, b) => b[1] - a[1])[0];
+    const demo = { ageBuckets, male, female: offs.length - male, total: offs.length,
+      summary: `${offs.length} offenders, ${Math.round((male / (offs.length || 1)) * 100)}% male, peak age band ${topAge ? topAge[0] : "n/a"}` };
+
+    const districtTable = districts.map((d, i) => ({ district: d.district, count: counts[i], unemployment: d.unemployment, literacy: d.literacy, urban: d.urban, income: d.income })).sort((a, b) => b.count - a.count);
+    const top = correlations[0];
+    return {
+      headline: top ? `the strongest social driver is ${top.name} (${top.insight}).` : "insufficient variance to correlate.",
+      headlineKN: top ? `ಪ್ರಮುಖ ಸಾಮಾಜಿಕ ಅಂಶ — ${top.name} (r=${top.r}).` : "",
+      correlations, demo, districtTable, cases, crimeType: crimeType || "All crime"
+    };
+  }
+
+  /* --------------------- Similar-case retrieval (lightweight) ------------- */
+  function similarCases(ref, n) {
+    return DB.cases.filter((c) => c.id !== ref.id).map((c) => {
+      let score = 0;
+      if (c.type === ref.type) score += 45;
+      if (c.area === ref.area) score += 20; else if (c.district === ref.district) score += 10;
+      if (c.modus === ref.modus) score += 20;
+      score += Math.max(0, 10 - Math.abs(c.severity - ref.severity) * 3);
+      if (Math.abs(c.ts - ref.ts) / dayMs < 120) score += 5;
+      return { c, score };
+    }).filter((x) => x.score >= 45).sort((a, b) => b.score - a.score).slice(0, n)
+      .map((x) => Object.assign({}, x.c, { matchPct: Math.min(99, Math.round(x.score)) }));
+  }
+
   function mostFrequentSuspect(cases) {
     const count = {};
     cases.forEach((c) => c.suspects.forEach((s) => (count[s] = (count[s] || 0) + 1)));
@@ -331,10 +483,31 @@
       intent, query,
       answerEN: "", answerKN: "",
       cases: [], network: null, hotspots: [], prediction: null, risk: null,
+      financial: null, socio: null,
       timeline: [], escalation: null, sources: [], steps: null
     }, extra);
   }
 
-  window.Engine = { parse, handle, predictHotspot, buildNetwork, computeHotspots, filterCases };
-  console.log("[KSP-Copilot] Engine ready.");
+  // Public entry — runs the dispatcher then updates conversation memory.
+  function handle(qRaw) {
+    const r = handleInner(qRaw);
+    try {
+      if (r.intent !== "help") {
+        if (r.network && r.network.focusId && /^SUS/.test(r.network.focusId)) CTX.suspect = r.network.focusId;
+        else if (r.cases && r.cases.length) {
+          const f = {}; r.cases.forEach((c) => (c.suspects || []).forEach((s) => (f[s] = (f[s] || 0) + 1)));
+          const top = Object.keys(f).sort((a, b) => f[b] - f[a])[0]; if (top) CTX.suspect = top;
+        }
+        if (r.cases && r.cases[0]) { CTX.lastCaseId = r.cases[0].id; CTX.crimeType = r.cases[0].type; CTX.district = r.cases[0].district; }
+        if (r.prediction && r.prediction.type && r.prediction.type !== "All crime") CTX.crimeType = r.prediction.type;
+      }
+    } catch (e) {}
+    return r;
+  }
+  function resetContext() { CTX = { crimeType: null, district: null, suspect: null, lastCaseId: null }; }
+
+  const ENGINE = { parse, handle, predictHotspot, buildNetwork, computeHotspots, filterCases, moneyTrail, socioInsights, similarCases, resetContext, getContext: () => CTX };
+  root.Engine = ENGINE;
+  if (typeof module !== "undefined" && module.exports) module.exports = ENGINE;
+  if (typeof console !== "undefined") console.log("[KSP-Copilot] Engine ready (pillars: financial, socio, similar, follow-up).");
 })();

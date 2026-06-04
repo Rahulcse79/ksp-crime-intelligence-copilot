@@ -27,8 +27,8 @@
         </div>
       </div>
       <div class="top-actions">
-        <div class="role-badge" title="Role-based access control">
-          <span class="dot"></span><span data-i18n="role">Inspector · Crime Branch</span>
+        <div class="role-badge" id="roleBadge" title="Role-based access control — click to switch role">
+          <span class="dot"></span><span id="roleText">Investigator</span><span class="caret">▾</span>
         </div>
         <div class="lang-toggle" id="langToggle">
           <button class="active" data-lang="en">EN</button>
@@ -95,6 +95,15 @@
               <div class="placeholder" data-i18n="ph_forecast">Run a prediction or open a suspect to see explainable scoring.</div>
             </div>
           </div>
+        </div>
+
+        <!-- SOCIOLOGICAL INSIGHTS -->
+        <div class="panel socio-panel" id="socioPanel" style="display:none">
+          <div class="panel-head">
+            <h2 data-i18n="socio">🏙️ Sociological Insights</h2>
+            <span class="panel-sub" data-i18n="socioSub">Criminology · socio-economic correlation</span>
+          </div>
+          <div id="socio" class="socio-body"></div>
         </div>
 
         <!-- TIMELINE -->

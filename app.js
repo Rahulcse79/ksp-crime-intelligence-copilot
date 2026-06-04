@@ -14,6 +14,16 @@
   let mapObj, heatLayer, markerGroup, predMarker, netObj;
   let lastResult = null;
 
+  // Pillar #10 — role-based access & governance.
+  const ROLES = {
+    Investigator: { scope: "Full case, network, financial & report access", financial: true, pii: true },
+    Analyst:      { scope: "Analytics & trends · financial restricted",     financial: false, pii: true },
+    Supervisor:   { scope: "Full access + oversight & audit trail",          financial: true, pii: true },
+    Policymaker:  { scope: "Aggregate analytics only · PII masked",          financial: false, pii: false }
+  };
+  let ROLE = "Investigator";
+  const maskName = (s) => ROLES[ROLE].pii ? s : s.replace(/[A-Za-z]+\s[A-Za-z]+/g, "Subject");
+
   /* ------------------------------ i18n ------------------------------------ */
   const STRINGS = {
     en: {
@@ -22,6 +32,7 @@
       grounded: "Grounded · 0 hallucination", map: "🗺️ Crime Hotspot Map",
       mapSub: "Live geospatial intelligence", network: "🕸️ Criminal Network",
       netSub: "Click a node to expand", forecast: "🔮 Forecast & Risk", xai: "Explainable AI",
+      socio: "🏙️ Sociological Insights", socioSub: "Criminology · socio-economic correlation",
       timeline: "📈 Investigation Timeline", evidence: "📁 Evidence & Report",
       genreport: "Generate PDF Report", audit: "Audit log",
       synthetic: "Synthetic demo data — no real persons or cases",
@@ -40,6 +51,7 @@
       grounded: "ದೃಢೀಕೃತ · ಶೂನ್ಯ ತಪ್ಪು", map: "🗺️ ಅಪರಾಧ ತಾಣ ನಕ್ಷೆ",
       mapSub: "ನೇರ ಭೌಗೋಳಿಕ ಗುಪ್ತಚರ", network: "🕸️ ಅಪರಾಧಿ ಜಾಲ",
       netSub: "ವಿಸ್ತರಿಸಲು ನೋಡ್ ಕ್ಲಿಕ್ ಮಾಡಿ", forecast: "🔮 ಊಹೆ ಮತ್ತು ಅಪಾಯ", xai: "ವಿವರಿಸಬಲ್ಲ AI",
+      socio: "🏙️ ಸಾಮಾಜಿಕ ಒಳನೋಟ", socioSub: "ಅಪರಾಧಶಾಸ್ತ್ರ · ಸಾಮಾಜಿಕ-ಆರ್ಥಿಕ ಸಂಬಂಧ",
       timeline: "📈 ತನಿಖಾ ಕಾಲರೇಖೆ", evidence: "📁 ಸಾಕ್ಷ್ಯ ಮತ್ತು ವರದಿ",
       genreport: "PDF ವರದಿ ರಚಿಸಿ", audit: "ಲೆಕ್ಕಪರಿಶೋಧನೆ",
       synthetic: "ಕೃತಕ ಡೆಮೋ ಮಾಹಿತಿ — ನಿಜವಾದ ವ್ಯಕ್ತಿಗಳಲ್ಲ",
@@ -57,6 +69,9 @@
 
   /* ---------------------------- Boot sequence ----------------------------- */
   function boot() {
+    $("#roleText").textContent = ROLE;
+    $("#roleBadge").title = ROLES[ROLE].scope;
+    loadAudit();
     renderStats();
     applyLang();
     startClock();
@@ -68,7 +83,7 @@
     const top = DB.topSuspect();
     renderNetwork(Engine.buildNetwork(top.id, 2));
     $("#netSub").textContent = top.name + " · risk " + top.riskScore;
-    audit("session.start", "role=" + STRINGS.en.role);
+    audit("session.start", ROLE);
     bindEvents();
   }
 
@@ -102,12 +117,15 @@
   function renderSuggestions() {
     const phone = DB.sampleHotPhone();
     const sus = DB.topSuspect();
+    const simCase = (DB.cases.find((c) => c.type === "Chain Snatching") || DB.cases[0]).id;
     const chips = [
       "Investigate chain snatching in Bengaluru",
-      "Show vehicle theft in Mysuru last 3 months",
-      "Trace phone " + phone,
+      "Show the money trail",
+      "Sociological insights for vehicle theft",
       "Network for " + sus.name,
-      "Predict next chain snatching hotspot in Bengaluru"
+      "Find similar cases to " + simCase,
+      "Predict next chain snatching hotspot in Bengaluru",
+      "Trace phone " + phone
     ];
     const box = $("#suggestions"); box.innerHTML = "";
     chips.forEach((c) => {
@@ -151,6 +169,19 @@
     audit("query", text.slice(0, 48));
 
     const result = Engine.handle(text);
+
+    // RBAC enforcement (pillar #10)
+    if (result.intent === "financial" && !ROLES[ROLE].financial) {
+      audit("access.denied", "financial · " + ROLE);
+      addBot(`🔒 Access restricted. Financial money-trail analysis requires Investigator or Supervisor. Your role (${ROLE}) scope: ${ROLES[ROLE].scope}.`);
+      return;
+    }
+    // PII governance — mask names for non-PII roles
+    if (!ROLES[ROLE].pii) {
+      result.answerEN = maskAnswer(result.answerEN);
+      result.answerKN = maskAnswer(result.answerKN);
+      if (result.risk) result.risk.subject = maskAnswer(result.risk.subject);
+    }
     lastResult = result;
 
     if (result.intent === "investigate" && result.steps) {
@@ -163,9 +194,11 @@
     }
     enableReport(result);
   }
+  function maskAnswer(t) { return (t || "").replace(/[A-Z][a-z]+\s[A-Z][a-z]+\s*\((SUS-\d+)\)/g, "Subject ($1)"); }
 
   /* ------------------- Headline: Autonomous Investigation ----------------- */
   async function runAutonomous(result) {
+    applySocio(result); // hide socio panel (investigate has no socio block)
     const box = addThink();
     const steps = result.steps;
     const actions = [null, null, () => applyEvidence(result), () => applyMap(result),
@@ -184,7 +217,7 @@
   }
 
   /* --------------------------- Panel updaters ----------------------------- */
-  function applyPanels(r) { applyMap(r); applyNetwork(r); applyForecast(r); applyTimeline(r); applyEvidence(r); }
+  function applyPanels(r) { applyMap(r); applyNetwork(r); applyForecast(r); applySocio(r); applyTimeline(r); applyEvidence(r); }
 
   /* ---- Map ---- */
   function initMap() {
@@ -247,7 +280,7 @@
     net.nodes.forEach((n) => {
       const isRoot = n.id === net.focusId;
       nodes.push({
-        id: n.id, label: (n.alias ? n.name + "\n“" + n.alias + "”" : n.name),
+        id: n.id, label: (n.alias && ROLES[ROLE].pii ? maskName(n.name) + "\n“" + n.alias + "”" : maskName(n.name)),
         shape: "dot", size: isRoot ? 30 : 18,
         color: { background: riskColor(n.risk), border: isRoot ? "#e0b64a" : "#0a1020", highlight: { background: riskColor(n.risk), border: "#fff" } },
         borderWidth: isRoot ? 4 : 2, font: { color: "#e8eefc", size: isRoot ? 15 : 12, face: "Inter" },
@@ -255,15 +288,25 @@
       });
     });
     (net.evidence || []).forEach((e) => {
-      const col = e.kind === "phone" ? "#34d7e6" : e.kind === "vehicle" ? "#4f8cff" : "#8a98b8";
-      nodes.push({ id: e.id, label: e.name, shape: "box", color: { background: "#101a2e", border: col }, font: { color: col, size: 11 }, borderWidth: 1, shapeProperties: { borderDashes: [4, 3] } });
+      const col = e.kind === "phone" ? "#34d7e6" : e.kind === "vehicle" ? "#4f8cff"
+        : e.kind === "account" ? "#3ddc84" : e.kind === "mule" ? "#ff5a5f" : "#8a98b8";
+      nodes.push({ id: e.id, label: e.name, shape: "box", color: { background: "#101a2e", border: col }, font: { color: col, size: 11 }, borderWidth: e.kind === "mule" ? 2 : 1, shapeProperties: { borderDashes: [4, 3] } });
     });
-    const edges = net.edges.map((ed) => ({
-      from: ed.from, to: ed.to,
-      color: { color: ed.kind === "associate" ? "#2c4068" : "#1f2d49", highlight: "#e0b64a" },
-      dashes: ed.kind !== "associate", width: ed.kind === "associate" ? 2 : 1,
-      font: { color: "#8a98b8", size: 9, strokeWidth: 0, background: "rgba(7,11,22,.6)" }, label: ed.label, smooth: { type: "continuous" }
-    }));
+    const EDGE = {
+      associate: { c: "#2c4068", w: 2, dash: false },
+      owns:      { c: "#3ddc84", w: 1, dash: false },
+      "txn-flag":{ c: "#ff5a5f", w: 3, dash: [6, 4] },
+      txn:       { c: "#4f8cff", w: 1, dash: [4, 4] }
+    };
+    const edges = net.edges.map((ed) => {
+      const st = EDGE[ed.kind] || { c: "#1f2d49", w: 1, dash: [4, 3] };
+      return {
+        from: ed.from, to: ed.to,
+        color: { color: st.c, highlight: "#e0b64a" }, dashes: st.dash, width: st.w,
+        arrows: (ed.kind === "txn" || ed.kind === "txn-flag") ? "to" : undefined,
+        font: { color: "#8a98b8", size: 9, strokeWidth: 0, background: "rgba(7,11,22,.6)" }, label: ed.label, smooth: { type: "continuous" }
+      };
+    });
     const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
     const options = {
       physics: { stabilization: { iterations: 120 }, barnesHut: { gravitationalConstant: -9000, springLength: 110, springConstant: 0.04 } },
@@ -283,8 +326,16 @@
   /* ---- Forecast & Risk (Explainable AI) ---- */
   function applyForecast(r) {
     const box = $("#forecast");
-    if (!r.prediction && !r.risk) return;
+    if (!r.prediction && !r.risk && !r.financial) return;
     let html = "";
+    if (r.financial) {
+      const f = r.financial;
+      const flagged = f.transactions.filter((t) => t.flagged).reduce((x, t) => x + t.amount, 0);
+      html += `<div class="pred-card" style="background:linear-gradient(145deg,rgba(255,90,95,.10),rgba(255,176,32,.05));border-color:rgba(255,90,95,.3)">
+        <div class="pc-top"><div><div class="pc-area" style="color:#ff7a7f">💸 Money Trail</div>
+        <div class="pc-meta">${f.accounts.length} accounts · ${f.transactions.length} transfers · ${f.mules} suspected mule a/c</div></div>
+        <div class="conf-ring" style="background:#ff5a5f;color:#fff">₹${Math.round(flagged / 1000)}k</div></div></div>`;
+    }
     if (r.prediction) {
       const p = r.prediction;
       html += `<div class="pred-card"><div class="pc-top">
@@ -320,6 +371,45 @@
       data: { datasets: [{ data: [score, 100 - score], backgroundColor: [col, "#16223b"], borderWidth: 0, circumference: 270, rotation: 225 }] },
       options: { cutout: "75%", plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { animateRotate: true } }
     });
+  }
+
+  /* ---- Sociological insights (pillar #4) ---- */
+  let ageChart;
+  function applySocio(r) {
+    const panel = $("#socioPanel"), box = $("#socio");
+    if (!r.socio) { panel.style.display = "none"; return; }
+    panel.style.display = "";
+    const s = r.socio, dem = s.demo;
+    const corr = s.correlations.map((c) => {
+      const col = c.r >= 0 ? "#ff5a5f" : "#3ddc84";
+      return `<div class="factor"><div class="f-top"><span class="f-lbl">${c.name}</span><span class="f-det">r=${c.r} · ${c.strength}</span></div>
+        <div class="bar"><i style="width:${Math.max(6, Math.abs(c.r) * 100)}%;background:${col}"></i></div>
+        <div class="corr-insight">${c.insight}</div></div>`;
+    }).join("");
+    box.innerHTML = `
+      <div class="socio-grid">
+        <div class="socio-col">
+          <div class="socio-h">Crime ↔ social-factor correlation <span>(across 12 districts)</span></div>
+          ${corr}
+        </div>
+        <div class="socio-col">
+          <div class="socio-h">Offender demographic — ${s.crimeType}</div>
+          <canvas id="ageChart" height="140"></canvas>
+          <div class="demo-line">👥 ${dem.total} offenders · ♂ ${Math.round(dem.male / (dem.total || 1) * 100)}% · ♀ ${Math.round(dem.female / (dem.total || 1) * 100)}%</div>
+          <div class="socio-h" style="margin-top:12px">Worst-affected districts</div>
+          <table class="cases mini"><thead><tr><th>District</th><th>Cases</th><th>Unemp%</th><th>Lit%</th><th>Urban%</th></tr></thead>
+          <tbody>${s.districtTable.slice(0, 6).map((d) => `<tr><td>${d.district}</td><td class="cid">${d.count}</td><td>${d.unemployment}</td><td>${d.literacy}</td><td>${d.urban}</td></tr>`).join("")}</tbody></table>
+        </div>
+      </div>
+      <div class="xai-note">ⓘ Correlation ≠ causation — these are prevention-planning signals, grounded in ${s.cases.length} records.</div>`;
+    if (typeof Chart !== "undefined") {
+      const ctx = $("#ageChart"); if (ageChart) ageChart.destroy();
+      ageChart = new Chart(ctx, {
+        type: "bar",
+        data: { labels: Object.keys(dem.ageBuckets), datasets: [{ data: Object.values(dem.ageBuckets), backgroundColor: ["#4f8cff", "#34d7e6", "#ffb020", "#ff5a5f"], borderRadius: 5 }] },
+        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#8a98b8" }, grid: { display: false } }, y: { ticks: { color: "#8a98b8" }, grid: { color: "#1f2d49" } } } }
+      });
+    }
   }
 
   /* ---- Timeline ---- */
@@ -467,21 +557,35 @@
   }
 
   /* ------------------------------- Audit ---------------------------------- */
+  // Persisted to localStorage → demonstrates the traceability a real
+  // deployment needs (production: write-once Catalyst Data Store + Signals).
   const auditLog = [];
   function audit(action, detail) {
-    const t = new Date().toLocaleTimeString("en-GB");
-    auditLog.unshift({ t, action, detail });
-    const track = $("#auditTrack");
-    track.innerHTML = auditLog.slice(0, 10).map((a) =>
-      `<span class="ae"><b>${a.t}</b> ${a.action}${a.detail ? " · " + escapeHtml(a.detail) : ""}</span>`
+    auditLog.unshift({ t: new Date().toLocaleTimeString("en-GB"), action, detail, role: ROLE });
+    saveAudit(); renderAudit();
+  }
+  function renderAudit() {
+    $("#auditTrack").innerHTML = auditLog.slice(0, 12).map((a) =>
+      `<span class="ae"><b>${a.t}</b> ${a.action}${a.detail ? " · " + escapeHtml(a.detail) : ""} <em>[${a.role || ROLE}]</em></span>`
     ).join("");
   }
+  function saveAudit() { try { localStorage.setItem("ksp_audit", JSON.stringify(auditLog.slice(0, 100))); } catch (e) {} }
+  function loadAudit() { try { const a = JSON.parse(localStorage.getItem("ksp_audit") || "[]"); if (a.length) auditLog.push(...a); } catch (e) {} }
 
   /* ------------------------------- Events --------------------------------- */
   function bindEvents() {
     $("#sendBtn").onclick = () => ask();
     $("#queryInput").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
     $("#micBtn").onclick = toggleListen;
+    $("#roleBadge").onclick = () => {
+      const keys = Object.keys(ROLES);
+      ROLE = keys[(keys.indexOf(ROLE) + 1) % keys.length];
+      $("#roleText").textContent = ROLE;
+      $("#roleBadge").title = ROLES[ROLE].scope;
+      $("#speakStatus").textContent = "🔐 Role: " + ROLE + " — " + ROLES[ROLE].scope;
+      audit("role.switch", ROLE);
+      if (lastResult) applyPanels(lastResult);
+    };
     $("#langToggle").querySelectorAll("button").forEach((b) => {
       b.onclick = () => {
         LANG = b.dataset.lang;

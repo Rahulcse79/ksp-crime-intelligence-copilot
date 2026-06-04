@@ -8,6 +8,8 @@
  * ==========================================================================*/
 (function () {
   "use strict";
+  // Isomorphic: same module powers the browser demo AND a Catalyst Node Function.
+  const root = typeof window !== "undefined" ? window : (typeof global !== "undefined" ? global : this);
 
   /* ---- Seeded RNG (mulberry32): stable data across reloads = safe demos ---- */
   function mulberry32(seed) {
@@ -78,6 +80,25 @@
       }));
     }
   });
+
+  // Socio-economic indicators per district (synthetic, plausible ranges).
+  // Feed pillar #4 (Sociological Crime Insights) — urbanization, literacy,
+  // unemployment, migration, per-capita income.
+  const SOCIO = {
+    Bengaluru:  { urban: 91, literacy: 89, unemployment: 4.2, migration: 0.92, income: 78 },
+    Mysuru:     { urban: 62, literacy: 82, unemployment: 5.1, migration: 0.55, income: 54 },
+    Mangaluru:  { urban: 68, literacy: 90, unemployment: 4.0, migration: 0.60, income: 62 },
+    Hubballi:   { urban: 58, literacy: 80, unemployment: 5.8, migration: 0.50, income: 48 },
+    Belagavi:   { urban: 49, literacy: 74, unemployment: 6.4, migration: 0.45, income: 42 },
+    Kalaburagi: { urban: 38, literacy: 65, unemployment: 8.2, migration: 0.38, income: 33 },
+    Davanagere: { urban: 45, literacy: 76, unemployment: 6.0, migration: 0.40, income: 40 },
+    Ballari:    { urban: 42, literacy: 68, unemployment: 7.5, migration: 0.50, income: 37 },
+    Vijayapura: { urban: 35, literacy: 67, unemployment: 7.9, migration: 0.35, income: 34 },
+    Shivamogga: { urban: 48, literacy: 80, unemployment: 5.5, migration: 0.42, income: 45 },
+    Tumakuru:   { urban: 40, literacy: 75, unemployment: 6.2, migration: 0.40, income: 41 },
+    Udupi:      { urban: 55, literacy: 92, unemployment: 3.8, migration: 0.50, income: 58 }
+  };
+  DISTRICTS.forEach((d) => Object.assign(d, SOCIO[d.district] || { urban: 50, literacy: 75, unemployment: 6, migration: 0.5, income: 45 }));
 
   /* ---------------------------- Crime taxonomy ---------------------------- */
   // weight = relative frequency, severity = 1..10 (feeds risk + prediction).
@@ -214,6 +235,69 @@
       }
   });
 
+  /* ------------------------------- Victims -------------------------------- */
+  // Pillar #1/#2 — victims as first-class entities linked to cases.
+  const VICTIMS = [];
+  const PROPERTY = ["Theft", "Burglary", "House Theft", "Robbery", "Chain Snatching", "Mobile Theft", "Cyber Fraud", "Dacoity"];
+  CASES.forEach((c) => {
+    c.victims = [];
+    const n = (c.type === "Murder" || c.type === "Assault" || c.type === "Kidnapping") ? 1 : (chance(0.85) ? 1 : 0);
+    for (let k = 0; k < n; k++) {
+      const v = {
+        id: "VIC-" + String(VICTIMS.length + 1).padStart(4, "0"),
+        name: pick(FIRST) + " " + pick(LAST),
+        age: ri(16, 74), gender: chance(0.5) ? "M" : "F",
+        district: c.district, caseId: c.id,
+        loss: PROPERTY.includes(c.type) ? ri(2, 800) * 100 : 0
+      };
+      VICTIMS.push(v); c.victims.push(v.id);
+    }
+  });
+
+  /* --------------------- Financial / transaction layer -------------------- */
+  // Pillar #7 — accounts, transactions, money trails, mule networks.
+  const BANKS = ["SBI", "Canara Bank", "KVB", "HDFC", "Axis", "Union Bank", "PNB"];
+  const ACCOUNTS = [];
+  SUSPECTS.forEach((s) => {
+    s.accounts = [];
+    if (chance(0.72)) {
+      const a = { id: "ACC-" + String(ACCOUNTS.length + 1).padStart(4, "0"), holder: s.id, holderName: s.name, bank: pick(BANKS), number: "XXXX" + ri(1000, 9999), mule: false };
+      ACCOUNTS.push(a); s.accounts.push(a.id);
+    }
+  });
+  const MULES = [];
+  for (let i = 0; i < 16; i++) {
+    const a = { id: "ACC-" + String(ACCOUNTS.length + 1).padStart(4, "0"), holder: null, holderName: "Unknown · " + pick(["mule a/c", "shell a/c", "benami a/c"]), bank: pick(BANKS), number: "XXXX" + ri(1000, 9999), mule: true };
+    ACCOUNTS.push(a); MULES.push(a);
+  }
+
+  const TRANSACTIONS = [];
+  let txId = 1;
+  const FIN_CRIMES = ["Cyber Fraud", "Robbery", "Dacoity", "Kidnapping"];
+  CASES.forEach((c) => {
+    c.transactions = [];
+    if (!FIN_CRIMES.includes(c.type) || !c.suspects.length) return;
+    const s = SUSPECTS.find((x) => x.id === c.suspects[0]);
+    const srcAcc = s.accounts[0];
+    if (!srcAcc) return;
+    const amount = ri(5, 500) * 1000;
+    const base = c.ts;
+    const m1 = pick(MULES), m2 = pick(MULES);
+    const mk = (from, to, amt, offDays) => {
+      const t = { id: "TXN-" + String(txId++).padStart(5, "0"), from, to, amount: amt, date: new Date(base + offDays * dayMs).toISOString().slice(0, 10), caseId: c.id, flagged: true };
+      TRANSACTIONS.push(t); c.transactions.push(t.id); return t;
+    };
+    mk(srcAcc, m1.id, amount, 1);
+    mk(m1.id, m2.id, Math.round(amount * 0.85), 2);
+    if (chance(0.5)) mk(m2.id, pick(MULES).id, Math.round(amount * 0.7), 3);
+  });
+  // legitimate background transactions (noise)
+  for (let i = 0; i < 70; i++) {
+    const a = pick(ACCOUNTS), b = pick(ACCOUNTS);
+    if (a.id === b.id) continue;
+    TRANSACTIONS.push({ id: "TXN-" + String(txId++).padStart(5, "0"), from: a.id, to: b.id, amount: ri(1, 60) * 1000, date: new Date(REF_NOW.getTime() - ri(0, 400) * dayMs).toISOString().slice(0, 10), caseId: null, flagged: false });
+  }
+
   /* ------------------------------ Risk model ------------------------------ */
   // Transparent, explainable score (NO black box). Each factor is reported.
   function scoreSuspect(s) {
@@ -243,10 +327,17 @@
     suspects: SUSPECTS,
     districts: DISTRICTS,
     crimeTypes: CRIME_TYPES,
+    victims: VICTIMS,
+    accounts: ACCOUNTS,
+    transactions: TRANSACTIONS,
     refNow: REF_NOW,
 
     caseById: (id) => CASES.find((c) => c.id === id),
     suspectById: (id) => SUSPECTS.find((s) => s.id === id),
+    victimById: (id) => VICTIMS.find((v) => v.id === id),
+    accountById: (id) => ACCOUNTS.find((a) => a.id === id),
+    districtByName: (n) => DISTRICTS.find((d) => d.district === n),
+    txForAccount: (accId) => TRANSACTIONS.filter((t) => t.from === accId || t.to === accId),
 
     districtNames: () => DISTRICTS.map((d) => d.district),
     crimeNames: () => CRIME_TYPES.map((c) => c.type),
@@ -269,6 +360,7 @@
     }
   };
 
-  window.DB = DB;
-  console.log("[KSP-Copilot] Synthetic DB ready:", DB.stats());
+  root.DB = DB;
+  if (typeof module !== "undefined" && module.exports) module.exports = DB;
+  if (typeof console !== "undefined") console.log("[KSP-Copilot] Synthetic DB ready:", DB.stats());
 })();

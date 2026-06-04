@@ -204,6 +204,23 @@ table.cases tr:hover td { background: rgba(79,140,255,.06); }
 .report-btn:disabled { opacity: .4; cursor: not-allowed; }
 .report-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(224,182,74,.3); }
 
+/* --------------------------- Sociological ------------------------------- */
+.socio-body { padding: 14px 16px; }
+.socio-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.socio-h { font-size: 12px; font-weight: 700; color: #cdd8f0; margin-bottom: 10px; }
+.socio-h span { color: var(--muted); font-weight: 400; }
+.corr-insight { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+.demo-line { font-size: 12px; color: #cdd8f0; margin-top: 8px; text-align: center; }
+table.cases.mini th, table.cases.mini td { padding: 5px 8px; font-size: 11px; }
+table.cases.mini th { text-transform: none; letter-spacing: 0; }
+@media (max-width: 760px) { .socio-grid { grid-template-columns: 1fr; } }
+
+/* role badge (clickable RBAC switcher) */
+.role-badge { cursor: pointer; user-select: none; transition: .15s; }
+.role-badge:hover { background: rgba(63,221,132,.16); }
+.role-badge .caret { color: var(--muted); font-size: 10px; }
+.audit-track .ae em { color: var(--gold); font-style: normal; opacity: .8; }
+
 /* ----------------------------- Audit bar -------------------------------- */
 .auditbar { display: flex; align-items: center; gap: 14px; padding: 9px 22px; background: var(--bg-2); border-top: 1px solid var(--border); font-size: 11.5px; }
 .audit-label { color: var(--muted); font-weight: 600; white-space: nowrap; }
