@@ -1,0 +1,11 @@
+{
+  "deployment": {
+    "name": "crime_api",
+    "stack": "node18"
+  },
+  "execution": {
+    "main": "index.js"
+  },
+  "type": "advancedio",
+  "memory": 256
+}

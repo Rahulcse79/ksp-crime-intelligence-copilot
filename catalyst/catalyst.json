@@ -1,0 +1,10 @@
+{
+  "_comment": "Template — run `catalyst init` to bind your project_id. Keep the index.js / schema.sql / client files provided here.",
+  "project_name": "ksp-crime-copilot",
+  "functions": {
+    "targets": ["functions/crime_api"]
+  },
+  "client": {
+    "source": "client"
+  }
+}

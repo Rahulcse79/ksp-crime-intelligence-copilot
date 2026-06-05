@@ -1,0 +1,10 @@
+{
+  "name": "crime_api",
+  "version": "1.0.0",
+  "description": "KSP Crime Intelligence Copilot — Catalyst Advanced I/O Function (shares the browser engine)",
+  "main": "index.js",
+  "dependencies": {
+    "express": "^4.19.2",
+    "zcatalyst-sdk-node": "^3.4.0"
+  }
+}
