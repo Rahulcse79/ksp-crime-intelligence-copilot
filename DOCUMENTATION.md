@@ -24,45 +24,45 @@ cd ~/Desktop/Datathon
 ## 2. Interface tour
 
 ### 2.1 Overview (command centre)
-![Overview — dark](docs/screenshots/01-overview-dark.png)
+![Overview — dark](Docs/screenshots/01-overview-dark.png)
 *Top bar: KSP branding, a clickable **role badge** (RBAC), a **theme toggle** (☀️/🌙), an **EN/ಕನ್ನಡ** switch, and a live clock. Below it, four live KPI cards (total cases, known suspects, districts, open/under-investigation). Left = the Copilot; right = the analysis workspace (map, network, forecast).*
 
 ### 2.2 Conversational Copilot + Autonomous Investigation ⭐
-![Copilot autonomous reasoning](docs/screenshots/02-copilot-autonomous-dark.png)
+![Copilot autonomous reasoning](Docs/screenshots/02-copilot-autonomous-dark.png)
 *Type a question (or use the suggestion chips / mic). For **"Investigate …"** the copilot runs the whole pipeline itself and shows its **reasoning step-by-step** (parse → retrieve → cluster → graph → forecast → report). Every answer ends with **Sources: KSP-xxxxx** citations — the heart of the zero-hallucination design. It also keeps **conversation context**, so "predict the next one" or "show their network" work without repeating yourself.*
 
 ### 2.3 Crime Hotspot Map (geospatial)
-![Crime map — dark](docs/screenshots/03-map-dark.png)
+![Crime map — dark](Docs/screenshots/03-map-dark.png)
 *A live Leaflet heatmap + cluster markers across Karnataka. Gold circles are hotspot clusters (sized by case count); the pulsing 🎯 marks the **predicted** next hotspot. The map auto-zooms to the current results.*
 
 ### 2.4 Criminal Network (link analysis)
-![Criminal network — dark](docs/screenshots/04-network-dark.png)
+![Criminal network — dark](Docs/screenshots/04-network-dark.png)
 *An interactive graph of suspects ↔ associates ↔ phones ↔ vehicles ↔ cases. Node colour = risk (green→amber→red). **Click any suspect** to expand their network and load their dossier.*
 
 ### 2.5 Forecast & Risk — Explainable AI
-![Forecast and risk — dark](docs/screenshots/05-forecast-dark.png)
+![Forecast and risk — dark](Docs/screenshots/05-forecast-dark.png)
 *Never a black box. The forecast shows the predicted area + confidence **with the factors behind it** (recent incidents, historical frequency, active offenders, recency momentum). The risk gauge shows a suspect's score with a transparent factor breakdown. The footnote reminds: the officer makes the final decision.*
 
 ### 2.6 Investigation Timeline (pattern detection)
-![Timeline — dark](docs/screenshots/06-timeline-dark.png)
+![Timeline — dark](Docs/screenshots/06-timeline-dark.png)
 *Cases plotted chronologically with a **pattern flag** — escalating / steady / de-escalating severity — to surface behavioural trends.*
 
 ### 2.7 Evidence & PDF Report
-![Evidence table — dark](docs/screenshots/07-evidence-dark.png)
+![Evidence table — dark](Docs/screenshots/07-evidence-dark.png)
 *The cited case records (ID, type, date, location, status). **Generate PDF Report** produces a formatted KSP investigation report with the summary, forecast, risk, hotspots and a cited case table.*
 
 ### 2.8 Financial Crime — money trail
-![Money trail — dark](docs/screenshots/08-financial-dark.png)
+![Money trail — dark](Docs/screenshots/08-financial-dark.png)
 *"Show the money trail" reveals the suspect's accounts and **transaction flow through layered mule accounts** (red = flagged transfers, with arrows and ₹ amounts) — classic laundering structure — plus the flagged total.*
 
 ### 2.9 Sociological Insights (criminology)
-![Sociological insights — dark](docs/screenshots/09-socio-dark.png)
+![Sociological insights — dark](Docs/screenshots/09-socio-dark.png)
 *Correlates crime with **socio-economic factors** (unemployment, literacy, urbanization, migration, income) across all 12 districts using Pearson correlation, plus an **offender demographic** breakdown (age bands, gender) and the worst-affected districts — decision support for prevention planning.*
 
 ### 2.10 Light theme
-![Overview — light](docs/screenshots/10-overview-light.png)
-![Map — light](docs/screenshots/11-map-light.png)
-![Network — light](docs/screenshots/12-network-light.png)
+![Overview — light](Docs/screenshots/10-overview-light.png)
+![Map — light](Docs/screenshots/11-map-light.png)
+![Network — light](Docs/screenshots/12-network-light.png)
 *One click on ☀️/🌙 switches the entire UI — including **map tiles** (dark → light) and **graph/chart** colours — and the choice is remembered across sessions.*
 
 ---
@@ -142,6 +142,6 @@ engine.js                    NLU + grounded retrieval + analytics (isomorphic)
 app.js                       UI orchestration (map/graph/voice/PDF/theme/RBAC)
 serve.py · start.sh · start.command   local launch
 catalyst/ · CATALYST.md      Catalyst deployment package + guide
-docs/screenshots/            the images in this document
+Docs/screenshots/            the images in this document
 README.md                    rubric coverage + demo script
 ```
