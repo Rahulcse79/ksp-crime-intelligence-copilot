@@ -22,15 +22,22 @@ No build step. No npm. First load fetches a few CDN libraries (map, graph, chart
 
 ---
 
-## 🎯 What it does — the 5 modules
+## 🎯 Coverage of the official 10-point problem statement
 
-| # | Module | What judges see |
-|---|--------|-----------------|
-| 1 | **Conversational Copilot** | Natural-language + voice queries (EN/ಕನ್ನಡ); every answer cites the exact case IDs it used |
-| 2 | **Crime Hotspot Map** | Live Leaflet heatmap + cluster markers across Karnataka, auto-zoom to results |
-| 3 | **Criminal Network Graph** | Interactive vis-network of suspects ↔ associates ↔ phones ↔ vehicles ↔ cases. Click any suspect to expand |
-| 4 | **Explainable Forecast & Risk** | Recency-weighted next-hotspot prediction + suspect risk score — **with the reasons**, never a black box |
-| 5 | **Auto PDF Report** | One click → a formatted KSP investigation report with citations, tables, and forecast |
+| # | Required pillar | In this prototype |
+|---|---|---|
+| 1 | Conversational interface (NL, EN/ಕನ್ನಡ, voice, **context-aware follow-up**, history→PDF) | ✅ chat + voice + follow-up memory + cited answers |
+| 2 | Criminal network & relationship analysis | ✅ interactive graph: suspects ↔ associates ↔ phones ↔ vehicles ↔ cases |
+| 3 | Crime pattern & trend analytics | ✅ hotspot map + clusters + timeline (seasonal: roadmap) |
+| 4 | **Sociological crime insights** | ✅ crime ↔ unemployment/literacy/urbanization/migration correlations + demographics |
+| 5 | Criminology offender profiling | ✅ repeat-offender detection + explainable risk score |
+| 6 | Investigator decision support | ✅ auto summaries, timelines, **similar-case search**, leads |
+| 7 | **Financial crime & transaction links** | ✅ money-trail graph, mule-account detection, flagged totals |
+| 8 | Crime forecasting & early warning | ✅ recency-weighted hotspot forecast (alerts via Catalyst Cron: roadmap) |
+| 9 | Explainable AI & transparent analytics | ✅✅ every claim cites case IDs; reasoning + factor bars |
+| 10 | **Secure role-based access & governance** | ✅ 4 roles, financial gating, PII masking, persistent audit log |
+
+### ⭐ The headline "wow": Autonomous Investigation
 
 ### ⭐ The headline "wow": Autonomous Investigation
 Type **"Investigate chain snatching in Bengaluru"** and the copilot runs the *entire* pipeline itself — you watch it reason step-by-step (retrieve → cluster → graph → forecast → report) and every panel fills in sequence. That's the moment that separates this from "a chatbot."
@@ -102,8 +109,12 @@ Download the six CDN libraries into a local `vendor/` folder and repoint the `<s
 ---
 
 ## 📁 Files
-- `index.html` — layout + library includes
-- `styles.css` — command-centre theme
-- `data.js` — deterministic synthetic crime database + transparent risk model
-- `engine.js` — NLU parse + grounded retrieval + forecast + graph (the agent brain)
-- `app.js` — UI orchestration, voice, bilingual, map/graph/charts, autonomous mode, PDF
+- `index.html` · `styles.css` — layout + command-centre theme
+- `data.js` — synthetic crime DB: FIRs, accused, **victims, accounts, transactions, socio-economic** + transparent risk model *(isomorphic: runs in browser **and** Node)*
+- `engine.js` — the agent brain: NLU + grounded retrieval + network + forecast + **financial money-trail + sociological correlations + similar-case + follow-up context** *(isomorphic)*
+- `app.js` — UI orchestration, voice, bilingual, map/graph/charts, autonomous mode, RBAC, audit, PDF
+- `CATALYST.md` — **mandatory deployment guide**: feature → Catalyst service mapping + exact deploy steps
+- `catalyst/` — ready-to-deploy package: `functions/crime_api` (Node Function reusing the engine), `datastore/schema.sql`, `client/`
+
+## 🏛️ Deployment (mandatory: Catalyst by Zoho)
+The browser app deploys to **Catalyst Web Client Hosting**; the backend is a **Catalyst Serverless Function** that imports the *same* `engine.js` (verified: `node` runs it headless, and the Function serves `/health`, `/stats`, `/query` with RBAC). Full service mapping (QuickML LLM+RAG, Zia AutoML, Zia voice, SmartBrowz, Auth, Circuits, Cron/Signals) and step-by-step deploy in **[CATALYST.md](CATALYST.md)**.

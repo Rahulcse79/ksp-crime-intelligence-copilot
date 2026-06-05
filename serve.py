@@ -2,12 +2,14 @@
 """Minimal static server for the KSP Crime Copilot demo.
 Serves an explicit absolute directory so it never calls os.getcwd()
 (works in restricted/sandboxed environments). Run: python3 serve.py [port]"""
+import os
 import sys
 import functools
 import http.server
 import socketserver
 
-DIRECTORY = "/Users/rahulsingh/Desktop/Datathon"
+# Serve the folder this script lives in (portable — move the project anywhere).
+DIRECTORY = os.path.dirname(os.path.abspath(__file__))
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
 
 
