@@ -60,7 +60,7 @@ The defining principle is **trust over fluency**: every figure is computed direc
 - 🤖 **Conversational copilot** — natural-language + voice queries, **context-aware follow-ups** ("predict the next one", "show their network"), bilingual EN/ಕನ್ನಡ.
 - ✅ **Grounded answers with citations** — every claim links to `KSP-xxxxx` case IDs; zero hallucination.
 - ⭐ **Autonomous Investigation** — one query runs the entire pipeline with visible step-by-step reasoning.
-- 🗺️ **Crime hotspot map** — live Leaflet heatmap + clusters + a predicted-hotspot target.
+- 🗺️ **Crime hotspot map** — live heatmap with **area-labelled markers**, rich popups (top crime · latest case), a pulsing predicted-hotspot target, and theme-aware tiles.
 - 🕸️ **Criminal network graph** — suspects ↔ associates ↔ phones ↔ vehicles ↔ cases; click to expand.
 - 🔮 **Explainable forecast & risk** — recency-weighted hotspot prediction + suspect risk, **with the reasons** (no black box).
 - 💸 **Financial money-trail** — accounts, layered mule-account detection, flagged transfers.
@@ -86,7 +86,7 @@ The defining principle is **trust over fluency**: every figure is computed direc
 </tr>
 <tr>
 <td width="50%"><img src="Docs/screenshots/09-socio-dark.png" alt="Sociological insights"><br><b>🏙️ Sociological Insights</b><br><sub>Crime ↔ socio-economic correlation + demographics.</sub></td>
-<td width="50%"><img src="Docs/screenshots/10-overview-light.png" alt="Light theme"><br><b>🌓 Light Theme</b><br><sub>Full light/dark theming (map stays dark for contrast).</sub></td>
+<td width="50%"><img src="Docs/screenshots/10-overview-light.png" alt="Light theme"><br><b>🌓 Light Theme</b><br><sub>Full light & dark theming, including theme-aware map tiles.</sub></td>
 </tr>
 </table>
 

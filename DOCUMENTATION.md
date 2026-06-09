@@ -33,7 +33,7 @@ cd ~/Desktop/Datathon
 
 ### 2.3 Crime Hotspot Map (geospatial)
 ![Crime map — dark](Docs/screenshots/03-map-dark.png)
-*A live Leaflet heatmap + cluster markers across Karnataka. Gold circles are hotspot clusters (sized by case count); the pulsing 🎯 marks the **predicted** next hotspot. The map auto-zooms to the current results.*
+*A live Leaflet heatmap across Karnataka with **area-labelled hotspot markers** (glowing dots + "name · count" pills; the worst hotspot pulses). Click any marker for a rich popup — case count, share of results, top crime type, and the latest case ID. The pulsing 🎯 marks the **predicted** next hotspot. The map auto-zooms to results and is **theme-aware** (light/dark tiles).*
 
 ### 2.4 Criminal Network (link analysis)
 ![Criminal network — dark](Docs/screenshots/04-network-dark.png)
