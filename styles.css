@@ -31,7 +31,7 @@
   --bg: #e9eff7; --bg-2: #ffffff; --panel: #ffffff; --panel-hi: #eef3fa;
   --border: #dbe3ef; --border-hi: #c4d0e3; --text: #15233b; --muted: #5a6a85;
   --gold: #b07d16; --cyan: #0d92a6; --blue: #2f6fe0; --green: #1f9d57; --amber: #c9810a; --red: #e23a40;
-  --map-bg: #0a1020; --net-bg1: #f4f8fd; --net-bg2: #e8eff8; --head-tint: rgba(20,40,80,.025);
+  --map-bg: #dfeaf7; --net-bg1: #f4f8fd; --net-bg2: #e8eff8; --head-tint: rgba(20,40,80,.025);
   --chip-text: #1f54b8;
   --shadow: 0 10px 30px rgba(20,40,80,.12);
 }
@@ -70,7 +70,7 @@ body {
   background: linear-gradient(90deg, rgba(16,26,46,.95), rgba(12,19,34,.95));
   border-bottom: 1px solid var(--border);
   backdrop-filter: blur(8px);
-  position: sticky; top: 0; z-index: 50;
+  position: sticky; top: 0; z-index: 1200;   /* above Leaflet panes/controls (1000) */
 }
 .brand { display: flex; align-items: center; gap: 14px; }
 .shield {
@@ -139,7 +139,7 @@ body {
 /* ------------------------------ Copilot --------------------------------- */
 .copilot { display: flex; flex-direction: column; height: calc(100vh - 168px); position: sticky; top: 150px; }
 .grounded-badge { font-size: 11px; font-weight: 700; color: var(--green); background: rgba(63,221,132,.08); border: 1px solid rgba(63,221,132,.25); padding: 4px 9px; border-radius: 999px; }
-.chat { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.chat { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
 .msg { max-width: 92%; padding: 11px 14px; border-radius: 14px; line-height: 1.5; font-size: 13.2px; animation: rise .25s ease; }
 @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
 .msg.user { align-self: flex-end; background: linear-gradient(145deg, var(--blue), #3a6fd8); color: #fff; border-bottom-right-radius: 4px; }
@@ -183,8 +183,36 @@ body {
 .leaflet-container { background: var(--map-bg); font-family: inherit; }
 .leaflet-popup-content-wrapper { background: var(--panel-hi); color: var(--text); border-radius: 10px; border: 1px solid var(--border-hi); }
 .leaflet-popup-tip { background: var(--panel-hi); }
+.leaflet-popup-content { color: var(--text); margin: 12px 14px; }
 .leaflet-popup-content b { color: var(--gold); }
-#network { height: 300px; width: 100%; background: radial-gradient(circle at 50% 40%, var(--net-bg1), var(--net-bg2)); }
+.leaflet-control-zoom a { background: var(--panel-hi) !important; color: var(--text) !important; border-color: var(--border-hi) !important; }
+
+/* Advanced hotspot markers (area label + glowing dot) */
+.hot-marker { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.hot-dot { width: 13px; height: 13px; border-radius: 50%; flex: 0 0 auto;
+  background: radial-gradient(circle at 30% 30%, #ffe08a, #ff8a00);
+  box-shadow: 0 0 12px 3px rgba(255,138,0,.55); border: 2px solid rgba(255,255,255,.35); }
+.hot-pill { font-size: 11px; font-weight: 700; color: #fff; background: rgba(8,13,26,.82);
+  border: 1px solid rgba(224,182,74,.55); padding: 2px 8px; border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+.hot-pill b { color: #ffd36b; margin-left: 4px; }
+.hot-top .hot-dot { width: 18px; height: 18px;
+  background: radial-gradient(circle at 30% 30%, #ffb0b0, #ff3b3b);
+  box-shadow: 0 0 18px 6px rgba(255,59,59,.6); animation: hotpulse 1.6s infinite; }
+.hot-top .hot-pill { border-color: rgba(255,90,95,.7); }
+@keyframes hotpulse { 50% { transform: scale(1.18); } }
+.pop-h { font-weight: 800; color: var(--gold); margin-bottom: 6px; font-size: 13px; }
+.pop-row { display: flex; justify-content: space-between; gap: 18px; font-size: 11.5px; padding: 1px 0; }
+.pop-row span { color: var(--muted); }
+.pop-id { margin-top: 5px; font-size: 10.5px; color: var(--cyan); font-weight: 700; }
+
+/* Suggestions open/close toggle */
+.sugg-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 2px; }
+.sugg-head span { font-size: 10.5px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .6px; }
+.sugg-toggle { background: transparent; border: 1px solid var(--border-hi); color: var(--muted); width: 26px; height: 20px; border-radius: 6px; cursor: pointer; font-size: 11px; line-height: 1; font-family: inherit; transition: .15s; }
+.sugg-toggle:hover { border-color: var(--blue); color: var(--blue); }
+.suggestions.collapsed { display: none; }
+#network { height: 380px; width: 100%; background: radial-gradient(circle at 50% 40%, var(--net-bg1), var(--net-bg2)); }
 
 /* ----------------------------- Forecast --------------------------------- */
 .forecast-body { padding: 14px 16px; min-height: 300px; }
