@@ -283,7 +283,7 @@ serve.py · start.sh · start.command   local launch
 catalyst/                      Catalyst deploy package (functions · datastore · client)
 CATALYST.md                    deployment guide + feature → service mapping
 DOCUMENTATION.md               full visual tour + function-by-function reference
-Docs/                          KSP.png (hero) · screenshots/ · submission template
+Docs/                          KSP.png · screenshots/ · filled submission deck (.pptx)
 README.md                      this file
 ```
 
