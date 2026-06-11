@@ -77,16 +77,20 @@ The defining principle is **trust over fluency**: every figure is computed direc
 
 <table>
 <tr>
-<td width="50%"><img src="Docs/screenshots/02-copilot-autonomous-dark.png" alt="Autonomous reasoning + citations"><br><b>🤖 Conversational + Autonomous</b><br><sub>Step-by-step reasoning, every answer cited.</sub></td>
-<td width="50%"><img src="Docs/screenshots/04-network-dark.png" alt="Criminal network"><br><b>🕸️ Criminal Network</b><br><sub>Suspects, associates, phones, vehicles, cases.</sub></td>
+<td width="50%"><img src="Docs/screenshots/01-overview.png" alt="Overview"><br><b>🖥️ Single-screen command centre</b><br><sub>Copilot · map · network · forecast · timeline · evidence.</sub></td>
+<td width="50%"><img src="Docs/screenshots/02-copilot-autonomous.png" alt="Autonomous copilot"><br><b>🤖 Conversational + Autonomous</b><br><sub>Step-by-step reasoning, every answer cited.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="Docs/screenshots/05-forecast-dark.png" alt="Explainable forecast and risk"><br><b>🔮 Explainable Forecast & Risk</b><br><sub>Predictions and risk with the factors behind them.</sub></td>
-<td width="50%"><img src="Docs/screenshots/08-financial-dark.png" alt="Financial money trail"><br><b>💸 Financial Money-Trail</b><br><sub>Funds flowing through layered mule accounts.</sub></td>
+<td width="50%"><img src="Docs/screenshots/03-map.png" alt="Crime hotspot map"><br><b>🗺️ Crime Hotspot Map</b><br><sub>Heatmap + area-label markers + predicted hotspot.</sub></td>
+<td width="50%"><img src="Docs/screenshots/04-network.png" alt="Criminal network"><br><b>🕸️ Criminal Network</b><br><sub>Suspects, associates, phones, vehicles, cases.</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="Docs/screenshots/09-socio-dark.png" alt="Sociological insights"><br><b>🏙️ Sociological Insights</b><br><sub>Crime ↔ socio-economic correlation + demographics.</sub></td>
-<td width="50%"><img src="Docs/screenshots/10-overview-light.png" alt="Light theme"><br><b>🌓 Light Theme</b><br><sub>Full light & dark theming, including theme-aware map tiles.</sub></td>
+<td width="50%"><img src="Docs/screenshots/05-forecast.png" alt="Explainable forecast and risk"><br><b>🔮 Explainable Forecast & Risk</b><br><sub>Predictions and risk with the factors behind them.</sub></td>
+<td width="50%"><img src="Docs/screenshots/06-timeline.png" alt="Investigation timeline"><br><b>📈 Investigation Timeline</b><br><sub>Chronology with escalation-pattern detection.</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="Docs/screenshots/07-evidence.png" alt="Evidence records"><br><b>📁 Evidence</b><br><sub>Cited case records — ID · type · date · location · status.</sub></td>
+<td width="50%"><img src="Docs/screenshots/08-report.png" alt="Report generation"><br><b>📄 Report Generation</b><br><sub>One-click formatted, cited PDF investigation report.</sub></td>
 </tr>
 </table>
 
