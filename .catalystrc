@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "42277000000020001",
+      "name": "KSP-Crime-Intelligence-Copilot",
+      "domain": {
+        "id": "50043028262",
+        "name": "ksp-crime-intelligence-copilot-60073126408.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60073126408",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    }
+  ]
+}

@@ -11,8 +11,16 @@
   const el = (t, c, h) => { const e = document.createElement(t); if (c) e.className = c; if (h != null) e.innerHTML = h; return e; };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let LANG = "en";
-  let mapObj, heatLayer, markerGroup, predMarker, netObj;
+  let THEME = (function () { try { return localStorage.getItem("ksp_theme") || "dark"; } catch (e) { return "dark"; } })();
+  let mapObj, heatLayer, markerGroup, predMarker, netObj, tileLayer;
   let lastResult = null;
+  const themeText = () => getComputedStyle(document.documentElement).getPropertyValue("--text").trim() || "#e8eefc";
+  const themeMuted = () => getComputedStyle(document.documentElement).getPropertyValue("--muted").trim() || "#8a98b8";
+  const trackCol = () => (THEME === "light" ? "#e3eaf4" : "#16223b");
+  const gridCol = () => (THEME === "light" ? "#e0e7f1" : "#1f2d49");
+  const heatGradient = () => (THEME === "light"
+    ? { 0.2: "#5b3df5", 0.5: "#2f6fe0", 0.75: "#ff8a00", 1: "#e23a40" }
+    : { 0.2: "#4f8cff", 0.5: "#34d7e6", 0.75: "#ffb020", 1: "#ff5a5f" });
 
   // Pillar #10 — role-based access & governance.
   const ROLES = {
@@ -32,7 +40,7 @@
       grounded: "Grounded · 0 hallucination", map: "🗺️ Crime Hotspot Map",
       mapSub: "Live geospatial intelligence", network: "🕸️ Criminal Network",
       netSub: "Click a node to expand", forecast: "🔮 Forecast & Risk", xai: "Explainable AI",
-      socio: "🏙️ Sociological Insights", socioSub: "Criminology · socio-economic correlation",
+      socio: "🏙️ Sociological Insights", socioSub: "Criminology · socio-economic correlation", trylabel: "💡 Try",
       timeline: "📈 Investigation Timeline", evidence: "📁 Evidence & Report",
       genreport: "Generate PDF Report", audit: "Audit log",
       synthetic: "Synthetic demo data — no real persons or cases",
@@ -51,7 +59,7 @@
       grounded: "ದೃಢೀಕೃತ · ಶೂನ್ಯ ತಪ್ಪು", map: "🗺️ ಅಪರಾಧ ತಾಣ ನಕ್ಷೆ",
       mapSub: "ನೇರ ಭೌಗೋಳಿಕ ಗುಪ್ತಚರ", network: "🕸️ ಅಪರಾಧಿ ಜಾಲ",
       netSub: "ವಿಸ್ತರಿಸಲು ನೋಡ್ ಕ್ಲಿಕ್ ಮಾಡಿ", forecast: "🔮 ಊಹೆ ಮತ್ತು ಅಪಾಯ", xai: "ವಿವರಿಸಬಲ್ಲ AI",
-      socio: "🏙️ ಸಾಮಾಜಿಕ ಒಳನೋಟ", socioSub: "ಅಪರಾಧಶಾಸ್ತ್ರ · ಸಾಮಾಜಿಕ-ಆರ್ಥಿಕ ಸಂಬಂಧ",
+      socio: "🏙️ ಸಾಮಾಜಿಕ ಒಳನೋಟ", socioSub: "ಅಪರಾಧಶಾಸ್ತ್ರ · ಸಾಮಾಜಿಕ-ಆರ್ಥಿಕ ಸಂಬಂಧ", trylabel: "💡 ಪ್ರಯತ್ನಿಸಿ",
       timeline: "📈 ತನಿಖಾ ಕಾಲರೇಖೆ", evidence: "📁 ಸಾಕ್ಷ್ಯ ಮತ್ತು ವರದಿ",
       genreport: "PDF ವರದಿ ರಚಿಸಿ", audit: "ಲೆಕ್ಕಪರಿಶೋಧನೆ",
       synthetic: "ಕೃತಕ ಡೆಮೋ ಮಾಹಿತಿ — ನಿಜವಾದ ವ್ಯಕ್ತಿಗಳಲ್ಲ",
@@ -69,6 +77,8 @@
 
   /* ---------------------------- Boot sequence ----------------------------- */
   function boot() {
+    document.documentElement.setAttribute("data-theme", THEME);
+    $("#themeToggle").textContent = THEME === "light" ? "🌙" : "☀️";
     $("#roleText").textContent = ROLE;
     $("#roleBadge").title = ROLES[ROLE].scope;
     loadAudit();
@@ -223,17 +233,32 @@
   function initMap() {
     if (typeof L === "undefined") { $("#map").innerHTML = '<div class="placeholder">Map library offline.</div>'; return; }
     mapObj = L.map("map", { zoomControl: true, attributionControl: false }).setView([14.6, 76.2], 7);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-      maxZoom: 19, subdomains: "abcd"
-    }).addTo(mapObj);
+    swapMapTiles();
     markerGroup = L.layerGroup().addTo(mapObj);
     injectPredCss();
+  }
+  function swapMapTiles() {
+    // Theme-aware basemap: light tiles in light mode, dark tiles in dark mode.
+    if (!mapObj || typeof L === "undefined") return;
+    if (tileLayer) mapObj.removeLayer(tileLayer);
+    const url = THEME === "light"
+      ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+    tileLayer = L.tileLayer(url, { maxZoom: 19, subdomains: "abcd" }).addTo(mapObj);
+    if (tileLayer.bringToBack) tileLayer.bringToBack();
+  }
+  function applyTheme() {
+    document.documentElement.setAttribute("data-theme", THEME);
+    const btn = $("#themeToggle"); if (btn) btn.textContent = THEME === "light" ? "🌙" : "☀️";
+    swapMapTiles();
+    if (lastResult) applyPanels(lastResult);
+    else if (mapObj) { const top = DB.topSuspect(); renderNetwork(Engine.buildNetwork(top.id, 2)); }
+    try { localStorage.setItem("ksp_theme", THEME); } catch (e) {}
   }
   function showInitialHeat() {
     if (!mapObj || !L.heatLayer) return;
     const pts = DB.cases.map((c) => [c.lat, c.lng, 0.45]);
-    heatLayer = L.heatLayer(pts, { radius: 18, blur: 22, maxZoom: 12,
-      gradient: { 0.2: "#4f8cff", 0.5: "#34d7e6", 0.75: "#ffb020", 1: "#ff5a5f" } }).addTo(mapObj);
+    heatLayer = L.heatLayer(pts, { radius: 18, blur: 22, maxZoom: 12, gradient: heatGradient() }).addTo(mapObj);
   }
   function applyMap(r) {
     if (!mapObj) return;
@@ -243,15 +268,14 @@
     const cases = r.cases || [];
     if (cases.length && L.heatLayer) {
       heatLayer = L.heatLayer(cases.map((c) => [c.lat, c.lng, 0.35 + c.severity / 14]),
-        { radius: 26, blur: 26, maxZoom: 13,
-          gradient: { 0.2: "#4f8cff", 0.5: "#34d7e6", 0.75: "#ffb020", 1: "#ff5a5f" } }).addTo(mapObj);
+        { radius: 26, blur: 26, maxZoom: 13, gradient: heatGradient() }).addTo(mapObj);
     } else { showInitialHeat(); }
 
-    (r.hotspots || []).forEach((h) => {
-      const radius = 9 + Math.min(h.count, 20);
-      L.circleMarker([h.lat, h.lng], {
-        radius, color: "#e0b64a", weight: 2, fillColor: "#ffb020", fillOpacity: 0.35
-      }).bindPopup(`<b>${h.area}</b>, ${h.district}<br>${h.count} case(s) · ${h.share}% of results`).addTo(markerGroup);
+    (r.hotspots || []).forEach((h, i) => {
+      const icon = L.divIcon({ className: "",
+        html: `<div class="hot-marker ${i === 0 ? "hot-top" : ""}"><span class="hot-dot"></span><span class="hot-pill">${h.area}<b>${h.count}</b></span></div>`,
+        iconSize: [16, 16], iconAnchor: [8, 8] });
+      L.marker([h.lat, h.lng], { icon, riseOnHover: true }).bindPopup(hotspotPopup(h)).addTo(markerGroup);
     });
 
     if (r.prediction) {
@@ -271,9 +295,26 @@
     s.textContent = ".pred-pulse{font-size:22px;filter:drop-shadow(0 0 6px #ff5a5f);animation:predpulse 1.2s infinite}@keyframes predpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}";
     document.head.appendChild(s);
   }
+  function hotspotPopup(h) {
+    const cs = (h.ids || []).map((id) => DB.caseById(id)).filter(Boolean);
+    const tc = {}; cs.forEach((c) => (tc[c.type] = (tc[c.type] || 0) + 1));
+    const topType = Object.keys(tc).sort((a, b) => tc[b] - tc[a])[0] || "—";
+    const recent = cs.slice().sort((a, b) => b.ts - a.ts)[0];
+    return `<div class="pop"><div class="pop-h">📍 ${h.area}, ${h.district}</div>` +
+      `<div class="pop-row"><span>Cases</span><b>${h.count}</b></div>` +
+      `<div class="pop-row"><span>Share of results</span><b>${h.share}%</b></div>` +
+      `<div class="pop-row"><span>Top crime</span><b>${topType}</b></div>` +
+      (recent ? `<div class="pop-row"><span>Latest</span><b>${recent.type} · ${recent.date}</b></div><div class="pop-id">${recent.id}</div>` : "") +
+      `</div>`;
+  }
 
   /* ---- Network ---- */
-  function applyNetwork(r) { if (r.network) { renderNetwork(r.network); $("#netSub").textContent = r.network.focusName + " · " + (r.network.nodes.length - 1) + " links"; } }
+  function applyNetwork(r) {
+    if (!r.network) return;
+    renderNetwork(r.network);
+    const connected = (r.network.nodes.length - 1) + (r.network.evidence ? r.network.evidence.length : 0);
+    $("#netSub").textContent = r.network.focusName + " · " + connected + " links";
+  }
   function renderNetwork(net) {
     if (typeof vis === "undefined" || !net) { $("#network").innerHTML = '<div class="placeholder">Graph library offline.</div>'; return; }
     const nodes = [];
@@ -283,7 +324,7 @@
         id: n.id, label: (n.alias && ROLES[ROLE].pii ? maskName(n.name) + "\n“" + n.alias + "”" : maskName(n.name)),
         shape: "dot", size: isRoot ? 30 : 18,
         color: { background: riskColor(n.risk), border: isRoot ? "#e0b64a" : "#0a1020", highlight: { background: riskColor(n.risk), border: "#fff" } },
-        borderWidth: isRoot ? 4 : 2, font: { color: "#e8eefc", size: isRoot ? 15 : 12, face: "Inter" },
+        borderWidth: isRoot ? 4 : 2, font: { color: themeText(), size: isRoot ? 15 : 12, face: "Inter" },
         title: "Risk " + n.risk + "/100"
       });
     });
@@ -309,12 +350,15 @@
     });
     const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
     const options = {
-      physics: { stabilization: { iterations: 120 }, barnesHut: { gravitationalConstant: -9000, springLength: 110, springConstant: 0.04 } },
+      physics: { stabilization: { iterations: 150, fit: true }, barnesHut: { gravitationalConstant: -9000, springLength: 110, springConstant: 0.04 } },
       interaction: { hover: true, tooltipDelay: 120 }, layout: { improvedLayout: true }
     };
     if (netObj) netObj.destroy();
     netObj = new vis.Network($("#network"), data, options);
-    netObj.once("stabilizationIterationsDone", () => netObj.setOptions({ physics: false }));
+    const fitNet = () => { try { netObj.fit({ animation: false }); } catch (e) {} };
+    netObj.once("stabilizationIterationsDone", () => { netObj.setOptions({ physics: false }); fitNet(); });
+    netObj.on("afterDrawing", function once() { netObj.off("afterDrawing", once); fitNet(); });
+    setTimeout(fitNet, 500); // fallback so the graph always centres in the panel
     netObj.on("click", (params) => {
       if (!params.nodes.length) return;
       const id = params.nodes[0];
@@ -368,7 +412,7 @@
     const col = score >= 70 ? "#ff5a5f" : score >= 40 ? "#ffb020" : "#3ddc84";
     gaugeChart = new Chart(ctx, {
       type: "doughnut",
-      data: { datasets: [{ data: [score, 100 - score], backgroundColor: [col, "#16223b"], borderWidth: 0, circumference: 270, rotation: 225 }] },
+      data: { datasets: [{ data: [score, 100 - score], backgroundColor: [col, trackCol()], borderWidth: 0, circumference: 270, rotation: 225 }] },
       options: { cutout: "75%", plugins: { legend: { display: false }, tooltip: { enabled: false } }, animation: { animateRotate: true } }
     });
   }
@@ -407,7 +451,7 @@
       ageChart = new Chart(ctx, {
         type: "bar",
         data: { labels: Object.keys(dem.ageBuckets), datasets: [{ data: Object.values(dem.ageBuckets), backgroundColor: ["#4f8cff", "#34d7e6", "#ffb020", "#ff5a5f"], borderRadius: 5 }] },
-        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: "#8a98b8" }, grid: { display: false } }, y: { ticks: { color: "#8a98b8" }, grid: { color: "#1f2d49" } } } }
+        options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { color: themeMuted() }, grid: { display: false } }, y: { ticks: { color: themeMuted() }, grid: { color: gridCol() } } } }
       });
     }
   }
@@ -577,6 +621,11 @@
     $("#sendBtn").onclick = () => ask();
     $("#queryInput").addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
     $("#micBtn").onclick = toggleListen;
+    $("#suggToggle").onclick = () => {
+      const collapsed = $("#suggestions").classList.toggle("collapsed");
+      $("#suggToggle").textContent = collapsed ? "▸" : "▾";
+    };
+    $("#themeToggle").onclick = () => { THEME = THEME === "light" ? "dark" : "light"; applyTheme(); audit("theme.switch", THEME); };
     $("#roleBadge").onclick = () => {
       const keys = Object.keys(ROLES);
       ROLE = keys[(keys.indexOf(ROLE) + 1) % keys.length];
